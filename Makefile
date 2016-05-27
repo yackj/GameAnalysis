@@ -22,15 +22,14 @@ coverage: NOSEFLAGS += --with-coverage --cover-package gameanalysis
 coverage: test
 
 check:
-	# TODO Eventually remove these exclusions
-	bin/flake8 gameanalysis test --exclude Bootstrap.py,Sequential.py
+	bin/flake8 gameanalysis test
 
 todo:
 	grep -nrIF -e TODO -e XXX -e FIXME * --exclude-dir=lib --exclude=Makefile --color=always
 
 setup:
 	virtualenv -p python3 .
-	bin/pip3 install -U pip --ignore-installed
+	bin/pip3 install -UI pip
 	bin/pip3 install -r requirements.txt
 
 ubuntu-requirements:
