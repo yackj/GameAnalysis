@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.special as sps
+from scipy.misc import comb
 from random import sample
 
 import rsgame
@@ -15,7 +16,7 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
             players: count
             strategies: [strategies]
             function_nodes: [function nodes]
-            action_graph: {strategy: [(neighbor,role)]}
+            action_graph: {strategy: [neighbor]}
             utilities: {strategy: np.array[weight]}
                     For each strategy, store the weight of all its neighbors
             functions: {function node: tuple(type of function,(param))}
@@ -39,10 +40,8 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
         self.neighbor_index = {s:np.array([n in self.neighbors[s] \
                                             for n in self.strategies]) \
                                             for s in self.nodes}
-
-        self.dev_reps = np.array([sps.gammaln(players) - sps.gammaln(i+1) \
-                         - sps.gammaln(players-i+2) for i in range(players)])
-
+        self.dev_reps = np.array([np.log(comb(players-1,i)) \
+                                        for i in range(players)])
         self.func_dict = {
             'quadratic': lambda x,y,z: \
                             [x*i**2 + y*i + z for i in range(players+1)],
@@ -77,13 +76,12 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
                            np.max(self.func_table[node]))
             elif node in self.strategies:
                 d[node] = (0, self.players)
-        
+
         min_payoff = float('inf')
         for s in self.strategies:
             min_config = [d[n][0] \
                             if self.utilities[s][self.neighbors[s][n]] >= 0 \
-                            else d[n][1] for n in self.neighbors[s]
-                            for s in strategies]
+                            else d[n][1] for n in self.neighbors[s]]
             min_s = np.dot(np.array(min_config), self.utilities[s])
             if min_s < min_payoff:
                 min_payoff = min_s
@@ -113,12 +111,17 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
                 if s in self.function_nodes:
                     local_mix[i] = sum(mix[self.neighbor_index[s]])
             local_mix += tiny # prevent log(0)
+
+            print(strat, local_mix)
+
             # EV: 
             EV = np.zeros(len(self.neighbors[strat]),float)
             for s,i in self.neighbors[strat].items():
                 # Find c(s)
                 prob = local_mix[self.neighbors[strat][s]]
+
                 sigma = np.array([np.log(prob) * i for i in range(self.players)])
+
                 if s in self.strategies:
                     f = np.array(range(self.players))
                     if s == strat:
@@ -128,6 +131,12 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
                         f = self.func_table[s][1:]
                     else:
                         f = self.func_table[s][:-1]
+
+                print('-'*5+'\n',s)
+                print(f)
+                print(sigma)
+                print(np.exp(self.dev_reps))
+
                 EV[i] = np.sum(f * np.exp(self.dev_reps + sigma))
             EVs.append(np.dot(EV,self.utilities[strat]))
         return EVs
