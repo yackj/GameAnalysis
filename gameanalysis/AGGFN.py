@@ -132,11 +132,6 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
                     else:
                         f = self.func_table[s][:-1]
 
-                print('-'*5+'\n',s)
-                print(f)
-                print(np.exp(sigma))
-                print(np.exp(self.dev_reps))
-
                 EV[i] = np.sum(f * np.exp(self.dev_reps + sigma))
             EVs.append(np.dot(EV,self.utilities[strat]))
         return EVs
