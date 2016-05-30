@@ -112,15 +112,15 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
                     local_mix[i] = sum(mix[self.neighbor_index[s]])
             local_mix += tiny # prevent log(0)
 
-            print(strat, local_mix)
-
             # EV: 
             EV = np.zeros(len(self.neighbors[strat]),float)
             for s,i in self.neighbors[strat].items():
                 # Find c(s)
                 prob = local_mix[self.neighbors[strat][s]]
 
-                sigma = np.array([np.log(prob) * i for i in range(self.players)])
+                sigma = np.array([(np.log(prob) * i + \
+                                  np.log(1-prob+tiny) * (self.players-i-1)) \
+                                  for i in range(self.players)])
 
                 if s in self.strategies:
                     f = np.array(range(self.players))
@@ -134,7 +134,7 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
 
                 print('-'*5+'\n',s)
                 print(f)
-                print(sigma)
+                print(np.exp(sigma))
                 print(np.exp(self.dev_reps))
 
                 EV[i] = np.sum(f * np.exp(self.dev_reps + sigma))
