@@ -2,8 +2,10 @@ import numpy as np
 import scipy.special as sps
 from scipy.misc import comb
 from random import sample
+from itertools import combinations_with_replacement as CwR
 
 import rsgame
+import sys
 
 tiny = float(np.finfo(np.float64).tiny)
 
@@ -90,9 +92,12 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
 
         min_payoff = float('inf')
         for s in self.strategies['All']:
-            min_config = [d[n][0] \
-                            if self.utilities[s][self.neighbors[s][n]] >= 0 \
-                            else d[n][1] for n in self.neighbors[s]]
+            min_config = np.zeros(len(self.neighbors[s]))
+            for n,i in self.neighbors[s].items():
+                if self.utilities[s][i] >= 0:
+                    min_config[i] = d[n][0]
+                else:
+                    min_config[i] = d[n][1]
             min_s = np.dot(np.array(min_config), self.utilities[s])
             if min_s < min_payoff:
                 min_payoff = min_s
@@ -110,7 +115,7 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
         EVs: list of payoffs of playing each strategy against the mixture
         local_mix: the mixture projected to this neighborhood
         """
-        mix = self.as_mixture(mix, verify=verify, as_array=True)
+        mix = self.as_mixture(mix, verify=False, as_array=True)
         EVs = []
         for strat in self.strategies['All']:
             # local_mix: if is action node append the prob 
@@ -128,8 +133,10 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
             for s,i in self.neighbors[strat].items():
                 # Find c(s)
                 prob = local_mix[self.neighbors[strat][s]]
+                if prob + tiny >= 1:
+                    prob = 1 - 2 * tiny
 
-                sigma = np.array([(np.log(prob) * i + \
+                sigma = np.array([(np.log(prob+tiny) * i + \
                                   np.log(1-prob+tiny) * (self.players['All']-i-1)) \
                                   for i in range(self.players['All'])])
 
@@ -209,3 +216,50 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
 
         return Sym_AGG_FNA(num_players, strategies, FNs, action_graph,
                            utilities, functions)
+
+    def pure_payoff(self, strat, profile):
+        """
+        Returns the payoff to the given pure strategy profile
+        Input:
+            strat: strategy
+            prof: profile
+        Output:
+            The payoff
+        """
+        payoff = 0
+        for s,i in self.neighbors[strat].items():
+            if s in self.strategies['All']:
+                count = profile[self.strategies['All'].index(s)]
+                payoff += self.utilities[strat][i] * count
+            if s in self.function_nodes:
+                count = 0
+                for n in self.neighbors[s]:
+                    count += profile[ self.strategies['All'].index(n) ]
+                    payoff += self.utilities[strat][i] * \
+                            self.func_table[s][count]
+
+        return payoff
+
+    def to_rsgame(self):
+        """
+        This method builds an rsgame object that represent the same
+        game. There will only be one role "All" in the constructed
+        rsgame
+        """
+        aprofiles = []
+        apayoffs = []
+        for profile in CwR(self.strategies['All'],self.players['All']):
+            count = np.array(
+                    [profile.count(n) for n in self.strategies['All']])
+            u = np.array(
+                [self.pure_payoff(n, count) for n in self.strategies['All']])
+            nz = np.nonzero(count)
+            mask = np.zeros(count.shape)
+            mask[nz] = 1
+            u = u * mask
+            aprofiles.append(count)
+            apayoffs.append(u)
+        aprofiles = np.array(aprofiles)
+        apayoffs = np.array(apayoffs)
+        return rsgame.Game(self.players, self.strategies,
+                           aprofiles, apayoffs)
