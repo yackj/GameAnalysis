@@ -4,7 +4,7 @@ from scipy.misc import comb
 from random import sample
 from itertools import combinations_with_replacement as CwR
 
-import rsgame
+from gameanalysis import rsgame
 import sys
 
 tiny = float(np.finfo(np.float64).tiny)
@@ -28,16 +28,16 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
             self._dev_reps: np.array[(n-1)C(0),(n-1)C(1),...,(n-1)C(n-1)]
             self.func_table: store the tabular format of functions
         """
-        super().__init__({"All":players}, {"All":set(strategies)})
+        super().__init__({"All":players}, {"All":set(sorted(strategies))})
         self.function_nodes = function_nodes
         self.utilities = utilities
         self.functions = functions
-        self.nodes = strategies + function_nodes
+        self.nodes = sorted(strategies) + function_nodes
         self.neighbors = {s:{n:i \
                              for i,n in enumerate(sorted(action_graph[s]))} \
                                         for s in self.nodes}
         self.neighbor_index = {s:np.array([n in self.neighbors[s] \
-                                            for n in self.strategies['All']]) \
+                                            for n in sorted(self.strategies['All'])]) \
                                             for s in self.nodes}
         self.dev_reps = np.array([np.log(comb(players-1,i)) \
                                         for i in range(players)])
@@ -76,6 +76,7 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
                            json_['action_graph'],
                            json_['utilities'],
                            json_['functions'])
+
 
     def min_payoffs(self, as_array=False):
         """
@@ -117,22 +118,16 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
         """
         mix = self.as_mixture(mix, verify=False, as_array=True)
         EVs = []
-        for strat in self.strategies['All']:
-            # local_mix: if is action node append the prob 
-            #            if function sum its neighbors
-            local_mix = np.zeros(len(self.neighbors[strat]),float)
-            for s,i in self.neighbors[strat].items():
-                if s in self.strategies['All']:
-                    local_mix[i] = mix[self.strategies['All'].index(s)]
-                if s in self.function_nodes:
-                    local_mix[i] = sum(mix[self.neighbor_index[s]])
-            local_mix += tiny # prevent log(0)
+        
+        p_probs = [sum(mix[self.neighbor_index[p]]) for p in self.function_nodes]
+        probs = np.append(mix, np.array(p_probs))
+
+        for strat in sorted(self.strategies['All']):
 
             # EV: 
             EV = np.zeros(len(self.neighbors[strat]),float)
             for s,i in self.neighbors[strat].items():
-                # Find c(s)
-                prob = local_mix[self.neighbors[strat][s]]
+                prob = probs[self.nodes.index(s)]
                 if prob + tiny >= 1:
                     prob = 1 - 2 * tiny
 
@@ -145,12 +140,12 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
                     if s == strat:
                         f += 1
                 elif s in self.function_nodes:
-                    if strat in self.neighbors[s].keys():
+                    if strat in self.neighbors[s]:
                         f = self.func_table[s][1:]
                     else:
                         f = self.func_table[s][:-1]
 
-                EV[i] = np.sum(f * np.exp(self.dev_reps + sigma))
+                EV[i] = np.dot(f, np.exp(self.dev_reps + sigma))
             EVs.append(np.dot(EV,self.utilities[strat]))
 
         return np.array(EVs)
@@ -229,14 +224,13 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
         payoff = 0
         for s,i in self.neighbors[strat].items():
             if s in self.strategies['All']:
-                count = profile[self.strategies['All'].index(s)]
+                count = profile[sorted(self.strategies['All']).index(s)]
                 payoff += self.utilities[strat][i] * count
             if s in self.function_nodes:
                 count = 0
                 for n in self.neighbors[s]:
-                    count += profile[ self.strategies['All'].index(n) ]
-                    payoff += self.utilities[strat][i] * \
-                            self.func_table[s][count]
+                    count += profile[ sorted(self.strategies['All']).index(n) ]
+                payoff += self.utilities[strat][i] * self.func_table[s][count]
 
         return payoff
 
@@ -250,9 +244,9 @@ class Sym_AGG_FNA(rsgame.EmptyGame):
         apayoffs = []
         for profile in CwR(self.strategies['All'],self.players['All']):
             count = np.array(
-                    [profile.count(n) for n in self.strategies['All']])
+                    [profile.count(n) for n in sorted(self.strategies['All'])])
             u = np.array(
-                [self.pure_payoff(n, count) for n in self.strategies['All']])
+                [self.pure_payoff(n, count) for n in sorted(self.strategies['All'])])
             nz = np.nonzero(count)
             mask = np.zeros(count.shape)
             mask[nz] = 1
