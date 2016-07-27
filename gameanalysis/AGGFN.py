@@ -43,7 +43,7 @@ class Sym_AGG_FNA(rsgame.BaseGame):
         super().__init__(num_players, num_strategies)
         self.action_weights = np.array(action_weights, dtype=float)
         self.function_inputs = np.array(function_inputs, dtype=bool)
-        self.configs = np.arange(num_players)[:,None]
+        self.configs = np.arange(num_players+1)[:,None]
         self.dev_reps = comb(num_players - 1, self.configs)
         self.log_dev_reps = gammaln(num_players) - gammaln(self.configs + 1) - \
                             gammaln(num_players - self.configs)
@@ -176,19 +176,13 @@ class Sym_AGG_FNA(rsgame.BaseGame):
         Output:
             The payoff
         """
-        raise NotImplementedError("not yet compatible with array implementation.")
-        payoff = 0
-        for s,i in self.neighbors[strat].items():
-            if s in self.strategies['All']:
-                count = profile[sorted(self.strategies['All']).index(s)]
-                payoff += self.utilities[strat][i] * count
-            if s in self.function_nodes:
-                count = 0
-                for n in self.neighbors[s]:
-                    count += profile[ sorted(self.strategies['All']).index(n) ]
-                payoff += self.utilities[strat][i] * self.func_table[s][count]
-
-        return payoff
+        if profile[strat] == 0:
+            return 0
+        func_counts = (self.function_inputs * profile).sum(0)
+        func_vals = np.array([self.func_table[i][func_counts[i]] \
+                for i in range(self.num_funcs)])
+        counts = np.append(profile, func_vals)
+        return np.dot(self.action_weights[strat], counts)
 
     def to_rsgame(self):
         """
