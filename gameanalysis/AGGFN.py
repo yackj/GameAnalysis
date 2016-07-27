@@ -177,7 +177,7 @@ class Sym_AGG_FNA(rsgame.BaseGame):
             The payoff array
         """
         assert self.verify_profile(profile)
-        func_counts = (self.function_inputs * profile).sum(0)
+        func_counts = (self.function_inputs * profile).sum(1)
         func_vals = np.array([self.func_table[i,n] for i, n in enumerate(func_counts)])
         counts = np.append(profile, func_vals)
         payoffs = (self.action_weights * counts).sum(1)
