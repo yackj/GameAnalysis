@@ -167,44 +167,28 @@ class Sym_AGG_FNA(rsgame.BaseGame):
         return Sym_AGG_FNA(num_players, strategies, FNs, action_graph,
                            utilities, functions)
 
-    def pure_payoff(self, strat, profile):
+    def get_payoffs(self, profile, default=None):
         """
-        Returns the payoff to the given pure strategy profile
+        Returns the payoffs to the given pure strategy profile
         Input:
-            strat: strategy
-            prof: profile
+            profile: numpy array representation of the profile
+            default: not used in AGGFN
         Output:
-            The payoff
+            The payoff array
         """
-        if profile[strat] == 0:
-            return 0
+        assert self.verify_profile(profile)
         func_counts = (self.function_inputs * profile).sum(0)
-        func_vals = np.array([self.func_table[i][func_counts[i]] \
-                for i in range(self.num_funcs)])
+        func_vals = np.array([self.func_table[i,n] for i, n in enumerate(func_counts)])
         counts = np.append(profile, func_vals)
-        return np.dot(self.action_weights[strat], counts)
+        payoffs = (self.action_weights * counts).sum(1)
+        payoffs[profile == 0] = 0
+        return payoffs
 
     def to_rsgame(self):
         """
         This method builds an rsgame object that represent the same
-        game. There will only be one role "All" in the constructed
-        rsgame
+        game. 
         """
-        raise NotImplementedError("not yet compatible with array implementation.")
-        aprofiles = []
-        apayoffs = []
-        for profile in CwR(self.strategies['All'],self.players['All']):
-            count = np.array(
-                    [profile.count(n) for n in sorted(self.strategies['All'])])
-            u = np.array(
-                [self.pure_payoff(n, count) for n in sorted(self.strategies['All'])])
-            nz = np.nonzero(count)
-            mask = np.zeros(count.shape)
-            mask[nz] = 1
-            u = u * mask
-            aprofiles.append(count)
-            apayoffs.append(u)
-        aprofiles = np.array(aprofiles)
-        apayoffs = np.array(apayoffs)
-        return rsgame.Game(self.players, self.strategies,
-                           aprofiles, apayoffs)
+        profiles = rsgame.BaseGame(self.num_players,self.num_strategies).all_profiles()
+        payoffs = np.array([self.get_payoffs(profile) for profile in profiles])
+        return rsgame.Game(self.num_players, self.num_strategies, profiles, payoffs)
