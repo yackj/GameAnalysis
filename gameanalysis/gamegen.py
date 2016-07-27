@@ -189,7 +189,7 @@ def congestion_game(num_players, num_facilities, num_required,
     strat_usage = profiles[..., None] * strat_mask
     usage = strat_usage.sum(1)
     fac_payoffs = (usage[..., None] ** np.arange(3) * values).sum(2)
-    payoffs = (strat_usage * fac_payoffs[:, None, :]).sum(2)
+    payoffs = ((strat_usage != 0) * fac_payoffs[:, None, :]).sum(2)
 
     game = rsgame.Game([num_players], [num_strats], profiles, payoffs)
     if not return_serial:
@@ -382,7 +382,7 @@ def normalize(game, new_min=0, new_max=1):
     return rsgame.Game(game, profiles, payoffs)
 
 
-def add_profiles(game, distribution=default_distribution, prob=1,
+def add_profiles(game, prob=1, distribution=default_distribution,
                  independent=True):
     """Add profiles to a base game
 
