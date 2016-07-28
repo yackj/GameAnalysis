@@ -51,6 +51,7 @@ class BaseGPGame(rsgame.BaseGame):
         for i, gp in enumerate(self._gps):
             mask = profiles[:, i] > 0
             profs = profiles[mask]
+            print(profs)
             profs[:, i] -= 1
             payoffs[mask, i] = gp.predict(profs)
         return payoffs
