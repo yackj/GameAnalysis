@@ -53,7 +53,8 @@ class BaseGPGame(rsgame.BaseGame):
             profs = profiles[mask]
             print(profs)
             profs[:, i] -= 1
-            payoffs[mask, i] = gp.predict(profs)
+            if profs.shape[0]:
+                payoffs[mask, i] = gp.predict(profs)
         return payoffs
 
     def get_mean_dev_payoffs(self, profiles):
