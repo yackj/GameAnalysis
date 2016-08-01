@@ -24,6 +24,7 @@ ifdef file
 	bin/py.test test/$(file)_test.py $(PYTEST_ARGS) --cov gameanalysis.$(file) --cov test.$(file)_test --cov-report term-missing
 else
 	bin/py.test test $(PYTEST_ARGS) --cov gameanalysis --cov test --cov-report term-missing
+	test/command_line_test.sh
 endif
 
 big: export BIG_TESTS=ON
@@ -40,14 +41,12 @@ todo:
 
 setup:
 	git pull
-	git submodule update --init --recursive
-	virtualenv -p python3 .
-	bin/pip3 install -UI pip
+	pyvenv .
+	bin/pip3 install -U pip
 	bin/pip3 install -r requirements.txt
 
 ubuntu-requirements:
-	sudo apt-get install python3 libatlas-base-dev gfortran
-	sudo pip3 install virtualenv
+	sudo apt-get install python3 libatlas-base-dev gfortran python3-venv
 
 ubuntu-setup: ubuntu-requirements setup
 
