@@ -37,6 +37,7 @@ def congestion_game(num_players, num_facilities, num_required):
     
     return a, json
 
+
 def congestion_AGG_from_json(json):
     
     num_players = json['num_players']

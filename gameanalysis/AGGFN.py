@@ -2,7 +2,7 @@ import numpy as np
 import scipy.special as sps
 from scipy.misc import comb
 from scipy.special import gammaln
-from random import sample
+from numpy import random as rand
 from itertools import combinations_with_replacement as CwR
 
 from gameanalysis import rsgame
@@ -184,11 +184,14 @@ class Sym_AGG_FNA(rsgame.BaseGame):
         payoffs[profile == 0] = 0
         return payoffs
 
-    def to_rsgame(self):
+    def to_rsgame(self, prop=1):
         """
         This method builds an rsgame object that represent the same
         game. 
         """
-        profiles = rsgame.BaseGame(self.num_players,self.num_strategies).all_profiles()
+        all_profs = rsgame.BaseGame(self.num_players,self.num_strategies).all_profiles()
+        profiles = all_profs[rand.choice(all_profs.shape[0], \
+                                         int(prop * len(all_profs)), \
+                                        replace=False)]
         payoffs = np.array([self.get_payoffs(profile) for profile in profiles])
         return rsgame.Game(self.num_players, self.num_strategies, profiles, payoffs)
