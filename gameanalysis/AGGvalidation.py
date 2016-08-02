@@ -83,7 +83,7 @@ def compute_error(game, gp):
     #return SMAPE(gp_payoffs, game_payoffs)
 
 
-def decay_games(game, num_rep=20, num_steps=10):
+def decay_games(game, num_rep=30, num_steps=20):
     error = np.empty([num_rep, num_steps], dtype=float)
     for rep in range(num_rep):
         for i in range(num_steps): 
@@ -94,5 +94,5 @@ def decay_games(game, num_rep=20, num_steps=10):
     return error
 
 
-#game = generate(*game_gen_params)
-#e = decay_games(game, num_rep=20)
+game = generate(*game_gen_params)
+e = decay_games(game, num_rep=20)
