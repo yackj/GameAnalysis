@@ -98,7 +98,7 @@ class Sym_AGG_FNA(rsgame.BaseGame):
             maxima[self.action_weights <= 0] = 0
 
             self._max_payoffs = ((minima + maxima) *
-                                 self.action_weights).sum(1).min(keepdims=True)
+                                 self.action_weights).sum(1).max(keepdims=True)
             self._max_payoffs.setflags(write=False)
         return self._max_payoffs.view()
 
@@ -145,6 +145,7 @@ class Sym_AGG_FNA(rsgame.BaseGame):
         json['utilities'] = self.utilities
         json['functions'] = self.functions
         return json
+
 
     @staticmethod
     def randomAGG(num_players, num_strats, num_FNs, D_min=0, D_max=-1,
@@ -194,6 +195,7 @@ class Sym_AGG_FNA(rsgame.BaseGame):
         return Sym_AGG_FNA(num_players, strategies, FNs, action_graph,
                            utilities, functions)
 
+
     def get_payoffs(self, profile, default=None):
         """
         Returns the payoffs to the given pure strategy profile
@@ -205,20 +207,52 @@ class Sym_AGG_FNA(rsgame.BaseGame):
         """
         assert self.verify_profile(profile)
         func_counts = (self.function_inputs * profile).sum(1)
-        func_vals = np.array([self.func_table[i,n] for i, n in enumerate(func_counts)])
+        func_vals = np.array([self.func_table[n,i] for i, n in enumerate(func_counts)])
         counts = np.append(profile, func_vals)
         payoffs = (self.action_weights * counts).sum(1)
         payoffs[profile == 0] = 0
         return payoffs
 
-    def to_rsgame(self, prop=1):
+
+    def get_noisy_payoffs(self, profile, mean, var):
+        """
+        Returns payoffs of a given profile with gaussian noises
+        Input:
+            profile: numpy array representation of the profile
+            mean: mean of the gaussian noise
+            var: variance of the gaussian noise
+        Return:
+            The noisy payoff array
+        """
+        orig_pay = self.get_payoffs(profile)
+        payoffs =  orig_pay + ( var * rand.randn(*orig_pay.shape) + mean )
+        payoffs[profile == 0] = 0
+        return payoffs
+
+
+    def to_rsgame(self, prop=1, noise=None, samples=1):
         """
         This method builds an rsgame object that represent the same
         game. 
+        Input:
+            prop:   the proportion of the profiles that will be used in 
+                    constructing the rs_game
+            noise:  the parameters for the gaussian noises, tuple of 
+                    (mean, var). Will not add noise if noise is None
+            sample: number of samples drawn before taking the average
+        Return:
+            rs_game representation of the game
         """
         all_profs = rsgame.BaseGame(self.num_players,self.num_strategies).all_profiles()
         profiles = all_profs[rand.choice(all_profs.shape[0], \
                                          int(prop * len(all_profs)), \
-                                        replace=False)]
-        payoffs = np.array([self.get_payoffs(profile) for profile in profiles])
+                                         replace=False)]
+        if noise is None:
+            payoffs = np.array([self.get_payoffs(profile) for profile in profiles])
+        else:
+            payoffs = np.empty([samples] + list(profiles.shape))
+            for i in range(samples):
+                payoffs[i] = np.array([self.get_noisy_payoffs(profile, *noise) \
+                                       for profile in profiles])
+            payoffs = payoffs.mean(0)
         return rsgame.Game(self.num_players, self.num_strategies, profiles, payoffs)
