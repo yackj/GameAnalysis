@@ -98,12 +98,40 @@ def compute_error(rs, gp, orig, use_all=False, num_samples=1000):
              float(orig.max_payoffs() - orig.min_payoffs()) )
 
 
-def full_game_error(max_num_players, reps, noise=None, samples=10):
+def get_accuracy(num_players, num_facilities, num_required, prop=1, noise=None,
+                 samples=10, num_reps=5):
+    """
+    Runs an reduction process and gets an approximate accuracy of the reduction
+    """
+    mae, mape, smape, rs_gap, orig_gap = 0, 0, 0, 0, 0
+
+    for rep in range(num_reps):
+        game, rs, json = generate(num_players, num_facilities, num_required,
+                                  prop=prop, noise=noise, samples=samples)
+        gp = gpgame.BaseGPGame(rs)
+        ret = compute_error(rs, gp, game)
+
+        mae += ret[0]
+        mape += ret[1]
+        smape += ret[2]
+        rs_gap += ret[3]
+        orig_gap += ret[4]
+
+    return mae / num_reps, \
+            mape / num_reps, \
+            smape / num_reps, \
+            rs_gap / num_reps, \
+            orig_gap / num_reps
+
+
+def full_game_error(max_num_players, num_reps=5, noise=None, samples=10):
     """
     Validation experiment for training gp with the entire game
     """
     mae, mape, smape, rs_gap, orig_gap = [], [], [], [], []
 
+    return [[i, 3, 1, 1, noise, samples, reps] for i in range(3, max_num_players)]
+    """
     for num_players in range(3, max_num_players):
         maer, maper, smaper, rs_gapr, orig_gapr = [], [], [], [], []
         for rep in range(reps):
@@ -125,9 +153,14 @@ def full_game_error(max_num_players, reps, noise=None, samples=10):
         orig_gap.append(sum(orig_gapr) / reps)
 
     return mae, mape, smape, rs_gap, orig_gap
+    """
 
 
-def decay_games(size, num_rep=30, num_steps=20, noise=None, samples=10):
+def decay_games(size, num_reps=30, num_steps=20, noise=None, samples=10, reps=5):
+
+    return [[6, 5, 2, i*(0.95/num_steps)+0.05, noise, samples, num_reps] \
+            for i in range(num_steps)]
+    """
     mae = np.empty([num_rep, num_steps], dtype=float)
     mape = np.empty([num_rep, num_steps], dtype=float)
     smape = np.empty([num_rep, num_steps], dtype=float)
@@ -150,6 +183,7 @@ def decay_games(size, num_rep=30, num_steps=20, noise=None, samples=10):
     orig_gap = orig_gap.sum(0) / num_rep
 
     return mae, mape, smape, rs_gap, orig_gap
+    """
 
 
 if __name__ == "__main__":
