@@ -9,4 +9,4 @@ f_out = open('./{}.out'.format(num), 'w')
 for line in f_in:
     params = eval(line)
     ret = AGGV.get_accuracy(*params)
-    f_out.write(str(ret)+'\n')
+    f_out.write(str(list(ret))+'\n')
