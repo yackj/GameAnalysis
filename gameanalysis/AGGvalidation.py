@@ -130,60 +130,20 @@ def full_game_error(max_num_players, num_reps=5, noise=None, samples=10):
     """
     mae, mape, smape, rs_gap, orig_gap = [], [], [], [], []
 
-    return [[i, 3, 1, 1, noise, samples, reps] for i in range(3, max_num_players)]
-    """
-    for num_players in range(3, max_num_players):
-        maer, maper, smaper, rs_gapr, orig_gapr = [], [], [], [], []
-        for rep in range(reps):
-            game, rs, json = generate(num_players, 3, 1,
-                                      noise=noise, samples=samples)
-            gp = gpgame.BaseGPGame(rs)
-            ret = compute_error(rs, gp, game, use_all=True)
-
-            maer.append(ret[0])
-            maper.append(ret[1])
-            smaper.append(ret[2])
-            rs_gapr.append(ret[3])
-            orig_gapr.append(ret[4])
-
-        mae.append(sum(maer) / reps)
-        mape.append(sum(maper) / reps)
-        smape.append(sum(smaper) / reps)
-        rs_gap.append(sum(rs_gapr) / reps)
-        orig_gap.append(sum(orig_gapr) / reps)
-
-    return mae, mape, smape, rs_gap, orig_gap
-    """
+    return np.array([[i, 3, 1, 1, noise, samples, reps] \
+                    for i in range(3, max_num_players)],dtype=object)
 
 
 def decay_games(size, num_reps=30, num_steps=20, noise=None, samples=10, reps=5):
 
-    return [[6, 5, 2, i*(0.95/num_steps)+0.05, noise, samples, num_reps] \
-            for i in range(num_steps)]
-    """
-    mae = np.empty([num_rep, num_steps], dtype=float)
-    mape = np.empty([num_rep, num_steps], dtype=float)
-    smape = np.empty([num_rep, num_steps], dtype=float)
-    rs_gap = np.empty([num_rep, num_steps], dtype=float)
-    orig_gap = np.empty([num_rep, num_steps], dtype=float)
+    return np.array([(size + [i*(0.95/num_steps)+0.05, noise, samples, num_reps]) \
+            for i in range(num_steps)], dtype=object)
 
-    for rep in range(num_rep):
-        for i in range(num_steps): 
-            game, rs, json = generate(*size, prop=i*(0.95/num_steps)+0.05,
-                                      noise=noise, samples=samples)
-            gp = gpgame.BaseGPGame(rs)
 
-            mae[rep][i], mape[rep][i], smape[rep][i], rs_gap[rep][i], \
-                    orig_gap[rep][i] = compute_error(rs, gp, game)
-
-    mae = mae.sum(0) / num_rep
-    mape = mape.sum(0) / num_rep
-    smape = smape.sum(0) / num_rep
-    rs_gap = rs_gap.sum(0) / num_rep
-    orig_gap = orig_gap.sum(0) / num_rep
-
-    return mae, mape, smape, rs_gap, orig_gap
-    """
+def noise_experiment(size, num_reps=30, max_noise=5, num_steps=20):
+    
+    return np.array([(size + [1, (0, i), 1, num_reps]) \
+            for i in np.arange(0, max_noise, max_noise/num_steps)], dtype=object)
 
 
 if __name__ == "__main__":
