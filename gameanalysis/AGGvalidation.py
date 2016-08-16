@@ -69,6 +69,15 @@ def SMAPE(orig, learned):
     return error[orig != 0].mean()
 
 
+def all_error(orig, learned):
+    """
+    Returns an array of MAE, MAPE, SMAPE measures of the original and learned
+    payoffs
+    """
+    return np.array(
+            [MAE(orig, learned), MAPE(orig, learned), SMAPE(orig, learned)] )
+
+
 def compute_pure_error(rs, gp, orig, use_all=False, num_samples=1000, comp_orig=True):
     """
     This methods takes a gp game and computes its error by comparing to the
@@ -98,36 +107,55 @@ def compute_pure_error(rs, gp, orig, use_all=False, num_samples=1000, comp_orig=
     else:
         game_payoffs = np.array([rs.get_payoffs(prof) for prof in profs])
 
-    return np.array([ MAE(gp_payoffs, game_payoffs), 
-                      MAPE(gp_payoffs, game_payoffs),
-                      SMAPE(gp_payoffs, game_payoffs),
-                      float(rs.max_payoffs() - rs.min_payoffs()),
-                      float(orig.max_payoffs() - orig.min_payoffs()) ])
+    return all_error(game_payoffs, gp_payoffs)
 
 
-def get_pure_accuracy(num_players, num_facilities, num_required, prop=1, noise=None,
+def compute_mixed_error(rs, gp, orig, use_all=False, num_samples=1000, \
+                        comp_orig=True, method=None):
+    """
+    Computes the error of deviation payoffs of a reduced game
+    Use all DPR, Point, Neighbor and Sample methods
+    Return:
+        - 2D array: |num_methods| row and |num_error_metrics| column
+                    errors of all methods using all error metrics
+    """
+    profs = rs.random_mixtures(num_samples=num_samples)
+    orig_pay = np.array([orig.deviation_payoffs(prof) for prof in profs])
+    target_num_player = 5
+    dpr = reduction.DeviationPreserving(orig.num_strategies[0],\
+                                        orig.num_players[0],\
+                                        target_num_players).reduce_game(agg.to_rsgame())
+    dpr_pay = np.array([dpr.deviation_payoffs(prof) for prof in profs])
+    pgp = gpgame.PointGPGame(bgp)
+    pgp_pay = np.array([pgp.deviation_payoffs(prof) for prof in profs])
+    sgp = gpgame.SampleGPGame(bgp)
+    sgp_pay = np.array([sgp.deviation_payoffs(prof) for prof in profs])
+    ngp = gpgame.NeighborGPGame(bgp)
+    ngp_pay = np.array([ngp.deviation_payoffs(prof) for prof in profs])
+
+    return np.array([all_error(orig_pay, dpr_pay),
+                     all_error(orig_pay, pgp_pay),
+                     all_error(orig_pay, sgp_pay),
+                     all_error(orig_pay, ngp_pay) ])
+
+
+def accuracy_experiment(num_players, num_facilities, num_required, prop=1, noise=None,
                  samples=10, num_reps=5, comp_orig=True):
     """
     Runs an reduction and gets an approximate accuracy of the reduction
     """
     # results is an array of 5 elements: mae, mape, smape, rs_gap, orig_gap
-    results = np.zeros(5, dtype=float)
+    pure_results = np.zeros(3, dtype=float)
+    dev_results = np.zeros([4,3], dtype=float)
 
     for rep in range(num_reps):
         game, rs, json = generate(num_players, num_facilities, num_required,
                                   prop=prop, noise=noise, samples=samples)
         gp = gpgame.BaseGPGame(rs)
-        results = results + compute_pure_error(rs, gp, game, comp_orig=comp_orig)
+        pure_results = pure_results + compute_pure_error(rs, gp, game, comp_orig=comp_orig)
+        dev_results = dev_results + compute_mixed_error(rs, gp, game, comp_orig=comp_orig)
 
-    return results / num_reps
-
-
-def compute_mixed_error(rs, gp, orig, use_all=False, num_samples=1000, \
-                        comp_orig=True, method=None):
-    if method not in ['DPR', 'Point', 'Neighbor', 'Sample']:
-        raise ValueError('Reduction Method illegal')
-    profs = rs.random_mixtures(num_samples=num_samples)
-    
+    return pure_results / num_reps, dev_results / num_reps
 
 
 def full_game_error(max_num_players, num_reps=5, noise=None, samples=10, cv_iter=8):
