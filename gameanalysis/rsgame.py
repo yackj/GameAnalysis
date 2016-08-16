@@ -240,7 +240,8 @@ class BaseGame(object):
 
     def all_profiles(self):
         """Return all profiles"""
-        role_arrays = [utils.acomb(n_strats, players) for n_strats, players
+        role_arrays = [utils.acomb(n_strats, players, True)
+                       for n_strats, players
                        in zip(self.num_strategies, self.num_players)]
         return utils.acartesian2(*role_arrays)
 
@@ -357,7 +358,7 @@ class BaseGame(object):
             The number of points to have along one dimensions
         """
         assert num_points > 1, "Must have at least two points on a dimensions"
-        role_mixtures = [utils.acomb(num_strats, num_points - 1) /
+        role_mixtures = [utils.acomb(num_strats, num_points - 1, True) /
                          (num_points - 1)
                          for num_strats in self.num_strategies]
         return utils.acartesian2(*role_mixtures)
@@ -498,12 +499,12 @@ class Game(BaseGame):
             "profiles was not non negative {} {}".format(
                 np.any(profiles < 0, 1).nonzero(),
                 profiles[profiles < 0])
-        assert not verify or np.all(self.role_reduce(profiles, axis=1) ==
+        assert not verify or np.all(self.role_reduce(profiles) ==
                                     self.num_players), \
             "not all profiles equaled player total {} {}".format(
-                np.any(self.role_reduce(profiles, axis=1) ==
+                np.any(self.role_reduce(profiles) ==
                        self.num_players, 1).nonzero(),
-                profiles[np.any(self.role_reduce(profiles, axis=1) ==
+                profiles[np.any(self.role_reduce(profiles) ==
                                 self.num_players, 1)])
         assert not verify or np.all(payoffs[profiles == 0] == 0), \
             "there were nonzero payoffs for strategies without players"
@@ -636,7 +637,8 @@ class Game(BaseGame):
             in the jacobian.
         """
         # TODO It wouldn't be hard to extend this to multiple mixtures, which
-        # would allow array calculation of mixture regret.
+        # would allow array calculation of mixture regret. Support would have
+        # to be iterative though.
         mix = np.asarray(mix, float)
         nan_mask = np.empty_like(mix, dtype=bool)
 
@@ -669,7 +671,7 @@ class Game(BaseGame):
                 # Ignore underflow caused when profile probability is not
                 # representable in floating point.
                 probs = np.exp(prof_prob + self._dev_reps - log_mix)
-            zero_prob = self.role_repeat(_TINY * self.num_players)
+            zero_prob = self.role_repeat(_TINY * (self.num_players + 1))
             weighted_payoffs = probs * np.where(probs > zero_prob,
                                                 self.payoffs, 0)
             values = np.sum(weighted_payoffs, 0)
@@ -683,7 +685,7 @@ class Game(BaseGame):
             return values
 
         if not nan_mask.all():
-            tmix = mix + self.role_repeat(_TINY * self.num_players)
+            tmix = mix + zero_prob
             product_rule = self.profiles[:, None] / tmix - np.diag(1 / tmix)
             dev_jac = np.sum(weighted_payoffs[..., None] * product_rule, 0)
         else:
