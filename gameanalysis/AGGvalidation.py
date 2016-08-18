@@ -2,6 +2,8 @@ from gameanalysis import AGGFN
 from gameanalysis import AGGgen
 from gameanalysis import gpgame
 from gameanalysis import reduction
+from gameanalysis import nash
+from gameanalysis import regret
 import numpy as np
 import numpy.random as rand
 import matplotlib.pyplot as plt
@@ -121,22 +123,47 @@ def compute_mixed_error(rs, gp, orig, use_all=False, num_samples=1000, \
     """
     profs = rs.random_mixtures(num_samples=num_samples)
     orig_pay = np.array([orig.deviation_payoffs(prof) for prof in profs])
-    target_num_player = 5
+    target_num_players = int(rs.num_players[0]/2)+1
     dpr = reduction.DeviationPreserving(orig.num_strategies[0],\
                                         orig.num_players[0],\
-                                        target_num_players).reduce_game(agg.to_rsgame())
+                                        target_num_players).reduce_game(rs)
     dpr_pay = np.array([dpr.deviation_payoffs(prof) for prof in profs])
-    pgp = gpgame.PointGPGame(bgp)
+    pgp = gpgame.PointGPGame(gp)
     pgp_pay = np.array([pgp.deviation_payoffs(prof) for prof in profs])
-    sgp = gpgame.SampleGPGame(bgp)
+    sgp = gpgame.SampleGPGame(gp)
     sgp_pay = np.array([sgp.deviation_payoffs(prof) for prof in profs])
-    ngp = gpgame.NeighborGPGame(bgp)
+    ngp = gpgame.NeighborGPGame(gp)
     ngp_pay = np.array([ngp.deviation_payoffs(prof) for prof in profs])
 
     return np.array([all_error(orig_pay, dpr_pay),
                      all_error(orig_pay, pgp_pay),
                      all_error(orig_pay, sgp_pay),
                      all_error(orig_pay, ngp_pay) ])
+
+
+def compute_EQ_regret(rs, gp, orig):
+    """
+    Computes the average regret of the equilibria calculated from different
+    methods
+    """
+    target_num_players = int(rs.num_players[0]/2)+1
+    dpr = reduction.DeviationPreserving(orig.num_strategies[0],\
+                                        orig.num_players[0],\
+                                        target_num_players).reduce_game(rs)
+    dpr_EQ = nash.mixed_nash(dpr, replicator={})
+    dpr_reg = np.array([regret.mixture_regret(rs, prof) for prof in dpr_EQ]).mean()
+
+    pgp = gpgame.PointGPGame(gp)
+    pgp_EQ = nash.mixed_nash(pgp, replicator={})
+    pgp_reg = np.array([regret.mixture_regret(rs, prof) for prof in pgp_EQ]).mean()
+    sgp = gpgame.SampleGPGame(gp)
+    sgp_EQ = nash.mixed_nash(sgp, replicator={})
+    sgp_reg = np.array([regret.mixture_regret(rs, prof) for prof in sgp_EQ]).mean()
+    ngp = gpgame.NeighborGPGame(gp)
+    ngp_EQ = nash.mixed_nash(ngp, replicator={})
+    ngp_reg = np.array([regret.mixture_regret(rs, prof) for prof in ngp_EQ]).mean()
+
+    return dpr_reg, pgp_reg, sgp_reg, ngp_reg
 
 
 def accuracy_experiment(num_players, num_facilities, num_required, prop=1, noise=None,
@@ -147,6 +174,7 @@ def accuracy_experiment(num_players, num_facilities, num_required, prop=1, noise
     # results is an array of 5 elements: mae, mape, smape, rs_gap, orig_gap
     pure_results = np.zeros(3, dtype=float)
     dev_results = np.zeros([4,3], dtype=float)
+    EQ_results = np.zeros(4, dtype=float)
 
     for rep in range(num_reps):
         game, rs, json = generate(num_players, num_facilities, num_required,
@@ -154,8 +182,9 @@ def accuracy_experiment(num_players, num_facilities, num_required, prop=1, noise
         gp = gpgame.BaseGPGame(rs)
         pure_results = pure_results + compute_pure_error(rs, gp, game, comp_orig=comp_orig)
         dev_results = dev_results + compute_mixed_error(rs, gp, game, comp_orig=comp_orig)
+        EQ_results = EQ_results + compute_EQ_regret(rs, gp, game)
 
-    return pure_results / num_reps, dev_results / num_reps
+    return pure_results / num_reps, dev_results / num_reps, EQ_results / num_reps
 
 
 def full_game_error(max_num_players, num_reps=5, noise=None, samples=10, cv_iter=8):

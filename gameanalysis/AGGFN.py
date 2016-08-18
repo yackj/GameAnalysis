@@ -125,7 +125,7 @@ class Sym_AGG_FNA(rsgame.BaseGame):
         # TODO To add jacobian support.
         assert not jacobian, "Sym_AGG_FNA doesn't support jacobian"
         func_node_probs = mix[:,None].repeat(self.num_funcs, 1)
-        func_node_probs[np.logical_not(self.function_inputs)] = 0
+        func_node_probs[np.logical_not(self.function_inputs).T] = 0
         func_node_probs = func_node_probs.sum(0)
 
         act_conf_probs = np.exp(np.log(mix + _TINY) * self.configs[:-1] +
@@ -133,15 +133,15 @@ class Sym_AGG_FNA(rsgame.BaseGame):
                   self.configs[1:]) + self.log_dev_reps)
         func_conf_probs = np.exp(np.log(func_node_probs + _TINY) *
                   self.configs[:-1] + np.log(1 - func_node_probs + _TINY) *
-                  (self.num_players - self.configs[1:]))
-
+                  (self.num_players - self.configs[1:]) + self.log_dev_reps)
+        
         EVs = np.empty(self.num_strategies)
         for s in range(self.num_strategies[0]):
             action_outputs = self.configs[:-1].repeat(self.num_strategies, 1)
             action_outputs[:,s] += 1
             function_outputs = np.array(self.func_table[:-1])
-            function_outputs[:,self.function_inputs[s]] = \
-                            self.func_table[1:,self.function_inputs[s]]
+            function_outputs[:,self.function_inputs.T[s]] = \
+                            self.func_table[1:,self.function_inputs.T[s]]
             node_EVs = np.append((act_conf_probs * action_outputs).sum(0),
                                  (func_conf_probs * function_outputs).sum(0))
             EVs[s] = np.dot(node_EVs, self.action_weights[s])
