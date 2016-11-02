@@ -113,6 +113,6 @@ def local_effect_game(num_players, num_strategies, D_min=1, D_max=-1,
     action_weights = np.insert(action_weights, num_neighbors.cumsum(), \
                                np.identity(num_strategies), axis=0)
     node_functions = [random_polynomial(degree, coef_dist) for _ in
-                            range(num_functions)]
+                            range(num_functions+num_strategies)]
     return AGGFN.Sym_AGG_FNA(num_players, num_strategies, action_weights,
                              function_inputs, node_functions)
