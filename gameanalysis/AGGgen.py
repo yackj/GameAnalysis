@@ -99,9 +99,10 @@ def local_effect_game(num_players, num_strategies, D_min=1, D_max=-1,
         D_max = num_strategies
     num_neighbors = np.random.randint(D_min, D_max, num_strategies)
     num_functions = sum(num_neighbors)
-    function_inputs = np.zeros([num_strategies,num_functions], dtype=bool)
-    function_inputs[np.arange(num_strategies).repeat(num_neighbors), \
-                    np.arange(num_functions)] = True
+    function_inputs = np.zeros([num_strategies,num_functions+num_strategies],\
+                               dtype=bool)
+    function_inputs[np.arange(num_strategies).repeat(num_neighbors+1), \
+                    np.arange(num_functions+num_strategies)] = True
     action_weights = np.zeros([num_functions, num_strategies])
     edge_dest = np.hstack([np.random.choice(
                                 np.delete(np.arange(num_strategies), s),
