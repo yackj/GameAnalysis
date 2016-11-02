@@ -87,3 +87,31 @@ def random_AGGFNA(num_players, num_strategies, num_funcs,
     function_inputs = func_edge_distr(num_strategies, num_funcs)
     return AGGFN.Sym_AGG_FNA(num_players, num_strategies, action_weights,
                              function_inputs, node_functions)
+
+LEG_coef_dist = lambda d: -np.random.exponential(10**(1-d))
+
+def local_effect_game(num_players, num_strategies, D_min=1, D_max=-1,
+                      degree=2, coef_dist=LEG_coef_dist):
+    # XXX Here D_min and D_max are out-degrees of actions
+    if D_min <= 0 or D_min >= num_strategies:
+        D_min = 1
+    if D_max <= D_min or D_max >= num_strategies:
+        D_max = num_strategies
+    num_neighbors = np.random.randint(D_min, D_max, num_strategies)
+    num_functions = sum(num_neighbors)
+    function_inputs = np.zeros([num_strategies,num_functions], dtype=bool)
+    function_inputs[np.arange(num_strategies).repeat(num_neighbors), \
+                    np.arange(num_functions)] = True
+    action_weights = np.zeros([num_functions, num_strategies])
+    edge_dest = np.hstack([np.random.choice(
+                                np.delete(np.arange(num_strategies), s),
+                                num_neighbors[s], replace=False) \
+                          for s in range(num_strategies)])
+    edge_dest = np.array(edge_dest, dtype=int)
+    action_weights[np.arange(num_functions), edge_dest] = 1
+    action_weights = np.insert(action_weights, num_neighbors.cumsum(), \
+                               np.identity(num_strategies), axis=0)
+    node_functions = [random_polynomial(degree, coef_dist) for _ in
+                            range(num_functions)]
+    return AGGFN.Sym_AGG_FNA(num_players, num_strategies, action_weights,
+                             function_inputs, node_functions)
