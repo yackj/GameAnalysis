@@ -92,6 +92,7 @@ class BaseGPGame(rsgame.BaseGame):
 _CV_PARAMS = {'alpha': stats.powerlaw(.2, loc=1e-3, scale=50)}
 
 
+"""
 # XXX This changed in a scipy update and should be verified that its doing what
 # we want
 def _train_gp(x, y, **search_kwds):
@@ -103,7 +104,13 @@ def _train_gp(x, y, **search_kwds):
         _CV_PARAMS, error_score=-np.inf, **search_kwds)
     cv.fit(x, y)
     return cv.best_estimator_
-
+"""
+def _train_gp(x, y, *args, **kwds):
+    kernel = 1.0 * gaussian_process.kernels.RBF(length_scale=1., length_scale_bounds=(1e-1,1e1)) + \
+    gaussian_process.kernels.WhiteKernel(noise_level=10., noise_level_bounds=(1e-2,1e4))
+    gp = gaussian_process.GaussianProcessRegressor(kernel=kernel, normalize_y=True, n_restarts_optimizer=10)
+    gp.fit(x, y)
+    return gp
 
 class PointGPGame(BaseGPGame):
     """Evaluates GPs at the 'profile' corresponding to mixture fractions.
