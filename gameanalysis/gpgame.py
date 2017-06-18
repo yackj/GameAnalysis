@@ -16,6 +16,28 @@ from gameanalysis import utils
 
 _TINY = np.finfo(float).tiny
 
+"""
+_CV_PARAMS = {'alpha': stats.powerlaw(.2, loc=1e-3, scale=50)}
+
+# XXX This changed in a scipy update and should be verified that its doing what
+# we want
+def _train_gp(x, y, **search_kwds):
+    if 'n_jobs' in search_kwds and search_kwds['n_jobs'] < 1:
+        # one job per cpu core
+        search_kwds['n_jobs'] = multiprocessing.cpu_count()
+    cv = model_selection.RandomizedSearchCV(
+        gaussian_process.GaussianProcessRegressor(),
+        _CV_PARAMS, error_score=-np.inf, **search_kwds)
+    cv.fit(x, y)
+    return cv.best_estimator_
+"""
+
+def _train_gp(x, y, *args, **kwds):
+    kernel = 1.0 * gaussian_process.kernels.RBF(length_scale=1., length_scale_bounds=(1e-1,1e1)) + \
+    gaussian_process.kernels.WhiteKernel(noise_level=10., noise_level_bounds=(1e-2,1e4))
+    gp = gaussian_process.GaussianProcessRegressor(kernel=kernel, normalize_y=True, n_restarts_optimizer=10)
+    gp.fit(x, y)
+    return gp
 
 class BaseGPGame(rsgame.BaseGame):
     """A game that regresses payoffs with a Gaussian process
@@ -24,7 +46,7 @@ class BaseGPGame(rsgame.BaseGame):
     # XXX running the gps can be expensive. It might useful to wrap the gps in
     # something like lru-dict so that recent profiles are cached.
 
-    def __init__(self, game, cv_jobs=0, cv_iters=16):
+    def __init__(self, game, cv_jobs=0, cv_iters=16, train_gp=_train_gp):
         super().__init__(game.num_players, game.num_strategies)
 
         if isinstance(game, BaseGPGame):
@@ -49,7 +71,7 @@ class BaseGPGame(rsgame.BaseGame):
                 gp_profs = game.profiles[prof_mask]
                 gp_profs[:, rs] -= 1
                 gp_pays = game.payoffs[prof_mask, rs]
-                self._gps.append(_train_gp(gp_profs, gp_pays, n_jobs=cv_jobs,
+                self._gps.append(train_gp(gp_profs, gp_pays, n_jobs=cv_jobs,
                                            n_iter=cv_iters))
 
     def is_complete(self):
@@ -89,28 +111,6 @@ class BaseGPGame(rsgame.BaseGame):
         return self._max_payoffs.view()
 
 
-_CV_PARAMS = {'alpha': stats.powerlaw(.2, loc=1e-3, scale=50)}
-
-
-"""
-# XXX This changed in a scipy update and should be verified that its doing what
-# we want
-def _train_gp(x, y, **search_kwds):
-    if 'n_jobs' in search_kwds and search_kwds['n_jobs'] < 1:
-        # one job per cpu core
-        search_kwds['n_jobs'] = multiprocessing.cpu_count()
-    cv = model_selection.RandomizedSearchCV(
-        gaussian_process.GaussianProcessRegressor(),
-        _CV_PARAMS, error_score=-np.inf, **search_kwds)
-    cv.fit(x, y)
-    return cv.best_estimator_
-"""
-def _train_gp(x, y, *args, **kwds):
-    kernel = 1.0 * gaussian_process.kernels.RBF(length_scale=1., length_scale_bounds=(1e-1,1e1)) + \
-    gaussian_process.kernels.WhiteKernel(noise_level=10., noise_level_bounds=(1e-2,1e4))
-    gp = gaussian_process.GaussianProcessRegressor(kernel=kernel, normalize_y=True, n_restarts_optimizer=10)
-    gp.fit(x, y)
-    return gp
 
 class PointGPGame(BaseGPGame):
     """Evaluates GPs at the 'profile' corresponding to mixture fractions.
