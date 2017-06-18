@@ -7,6 +7,7 @@ import numpy.random as rand
 from gameanalysis import rsgame
 from gameanalysis import subgame
 from gameanalysis import utils
+from gameanalysis import aggfn
 
 
 # TODO Make reductions handle partial profiles
@@ -495,6 +496,18 @@ class DeviationPreserving(_Reduction):
             else:
                 unknown = (red_profiles > 0) & (red_payoff_counts == 0)
                 red_payoffs[unknown] = np.nan
+            return rsgame.game(self.red_game.num_players, game.num_strategies,
+                               red_profiles, red_payoffs, False)
+
+        elif isinstance(game, aggfn.AgfnGame):
+            red_profiles = rsgame.basegame(self.red_game.num_players,
+                                           game.num_strategies).all_profiles()
+            red_payoffs = np.zeros(red_profiles.shape)
+            for i, prof in enumerate(red_profiles):
+                orig_profs, contribution = self.expand_profiles([prof], True)
+                orig_pay = np.array([game.get_payoffs(p) for p in orig_profs])
+                pay_ind = np.nonzero(contribution)[1]
+                red_payoffs[i][pay_ind] = orig_pay[contribution]
             return rsgame.game(self.red_game.num_players, game.num_strategies,
                                red_profiles, red_payoffs, False)
 
