@@ -33,7 +33,7 @@ def _train_gp(x, y, **search_kwds):
 """
 
 def _train_gp(x, y, *args, **kwds):
-    kernel = 1.0 * gaussian_process.kernels.RBF(length_scale=1., length_scale_bounds=(1e-1,1e1)) + \
+    kernel = 1.0 * gaussian_process.kernels.RBF(length_scale=50., length_scale_bounds=(50., 100.)) + \
     gaussian_process.kernels.WhiteKernel(noise_level=10., noise_level_bounds=(1e-2,1e4))
     gp = gaussian_process.GaussianProcessRegressor(kernel=kernel, normalize_y=True, n_restarts_optimizer=10)
     gp.fit(x, y)

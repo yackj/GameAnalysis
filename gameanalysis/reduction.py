@@ -211,7 +211,12 @@ class Hierarchical(_Reduction):
 
             return rsgame.game(self.red_game.num_players, game.num_strategies,
                                red_profiles, payoffs[mask], False)
-
+        elif isinstance(game, aggfn.AgfnGame):
+            red_profiles = rsgame.basegame(self.red_game.num_players,
+                                           game.num_strategies).all_profiles()
+            red_payoffs = np.array([game.get_payoffs(p) for p in red_profiles])
+            return rsgame.game(self.red_game.num_players, game.num_strategies,
+                               red_profiles, red_payoffs, False)
         else:
             return rsgame.basegame(self.red_game.num_players,
                                    game.num_strategies)

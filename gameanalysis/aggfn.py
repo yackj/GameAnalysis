@@ -255,6 +255,17 @@ class AgfnGame(rsgame.BaseGame):
         payoffs[profile == 0] = 0
         return payoffs
 
+    def get_noisy_payoffs(self, profile, mu=0, sigma=1):
+        """Returns an array of profiles payoffs with white noise"""
+        function_inputs = self.role_reduce(
+            profile[:, None] * self._function_inputs, 0)
+        inds = (np.arange(self.num_functions),) + tuple(function_inputs)
+        function_outputs = self._function_table[inds]
+        payoffs = function_outputs.dot(self._action_weights)
+        payoffs += np.random.normal(mu, sigma, len(payoffs))
+        payoffs[profile == 0] = 0
+        return payoffs
+
     def _get_payoffs_sum(self, profile):
         function_inputs = profile.dot(self._function_inputs)
         function_outputs = self._function_table[np.arange(self.num_functions),
