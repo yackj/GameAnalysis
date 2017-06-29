@@ -197,8 +197,10 @@ class ReplicatorDynamics(object):
         # instead of just once
         minp = self.game.min_payoffs()
         maxp = self.game.max_payoffs()
+        trail = []
 
         for _ in range(self.max_iters):
+            trail.append(mix)
             old_mix = mix
             dev_pays = self.game.deviation_payoffs(mix, assume_complete=True)
             minp = np.minimum(minp, self.game.role_reduce(dev_pays,
@@ -317,21 +319,23 @@ def mixed_nash(game, regret_thresh=1e-3, dist_thresh=1e-3, grid_points=2,
 
     equilibria = collect.WeightedSimilaritySet(
         lambda a, b: linalg.norm(a - b) < dist_thresh)
+    trails = []
     best = (np.inf, -1, None)
     chunksize = len(initial_points) if processes == 1 else 4
 
     with multiprocessing.Pool(processes) as pool:
-        for i, eqm in enumerate(itertools.chain.from_iterable(
+        for i, eqm, trail in enumerate(itertools.chain.from_iterable(
                 pool.imap_unordered(m, initial_points, chunksize=chunksize)
                 for m in methods)):
             reg = regret.mixture_regret(game, eqm)
             if reg < regret_thresh:
                 equilibria.add(eqm, reg)
+                trails.append(trail)
             best = min(best, (reg, i, eqm[None]))
 
     if not equilibria and at_least_one:
-        return best[2]
+        return best[2], trail
     elif not equilibria:
-        return np.empty((0, game.num_role_strats))
+        return np.empty((0, game.num_role_strats)), trail
     else:
-        return np.concatenate([x[0][None] for x in equilibria])
+        return np.concatenate([x[0][None] for x in equilibria]), trail
