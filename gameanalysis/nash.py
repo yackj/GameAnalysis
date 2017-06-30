@@ -324,9 +324,10 @@ def mixed_nash(game, regret_thresh=1e-3, dist_thresh=1e-3, grid_points=2,
     chunksize = len(initial_points) if processes == 1 else 4
 
     with multiprocessing.Pool(processes) as pool:
-        for i, eqm, trail in enumerate(itertools.chain.from_iterable(
+        for i, et in enumerate(itertools.chain.from_iterable(
                 pool.imap_unordered(m, initial_points, chunksize=chunksize)
                 for m in methods)):
+            eqm, trail = et 
             reg = regret.mixture_regret(game, eqm)
             if reg < regret_thresh:
                 equilibria.add(eqm, reg)
