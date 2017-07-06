@@ -192,12 +192,12 @@ class ReplicatorDynamics(object):
         self.converge_thresh = converge_thresh
         self.slack = slack
 
-    def __call__(self, mix):  # pragma: no cover
+    def __call__(self, mix, route=False):  # pragma: no cover
         # FIXME Allow for random convergence, (e.g.) repeatedly below threshold
         # instead of just once
         minp = self.game.min_payoffs()
         maxp = self.game.max_payoffs()
-        trail = []
+        if route: trail = []
 
         for _ in range(self.max_iters):
             trail.append(mix)
@@ -216,7 +216,10 @@ class ReplicatorDynamics(object):
                 break
 
         # Probabilities are occasionally negative
-        return self.game.simplex_project(mix)
+        if route:
+            return self.game.simplex_project(mix), np.array(trail)
+        else:
+            return self.game.simplex_project(mix)
 
 
 class FixedPoint(object):

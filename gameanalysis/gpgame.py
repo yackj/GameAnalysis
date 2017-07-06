@@ -78,15 +78,21 @@ class BaseGPGame(rsgame.BaseGame):
         # GP Games are always complete
         return True
 
-    def get_payoffs(self, profiles):
+    def get_payoffs(self, profiles, return_cov=False):
         """Get the payoffs for a set of profiles"""
-        payoffs = np.zeros(profiles.shape)
+        if return_cov:
+            payoffs = np.zeros((*profiles.shape, 2)) 
+        else:
+            payoffs = np.zeros(profiles.shape)
         for i, gp in enumerate(self._gps):
             mask = profiles[:, i] > 0
             profs = profiles[mask]
             profs[:, i] -= 1
             if profs.shape[0]:
-                payoffs[mask, i] = gp.predict(profs)
+                if return_cov:
+                    payoffs[mask, i, 0], payoffs[mask, i , 1] = gp.predict(profs, True)
+                else:
+                    payoffs[mask, i] = gp.predict(profs)
         return payoffs
 
     def get_mean_dev_payoffs(self, profiles):
