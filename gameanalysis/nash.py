@@ -322,7 +322,6 @@ def mixed_nash(game, regret_thresh=1e-3, dist_thresh=1e-3, grid_points=2,
 
     equilibria = collect.WeightedSimilaritySet(
         lambda a, b: linalg.norm(a - b) < dist_thresh)
-    trails = []
     best = (np.inf, -1, None)
     chunksize = len(initial_points) if processes == 1 else 4
 
@@ -330,16 +329,14 @@ def mixed_nash(game, regret_thresh=1e-3, dist_thresh=1e-3, grid_points=2,
         for i, et in enumerate(itertools.chain.from_iterable(
                 pool.imap_unordered(m, initial_points, chunksize=chunksize)
                 for m in methods)):
-            eqm, trail = et 
             reg = regret.mixture_regret(game, eqm)
             if reg < regret_thresh:
                 equilibria.add(eqm, reg)
-                trails.append(trail)
             best = min(best, (reg, i, eqm[None]))
 
     if not equilibria and at_least_one:
-        return best[2], trail
+        return best[2]
     elif not equilibria:
-        return np.empty((0, game.num_role_strats)), trail
+        return np.empty((0, game.num_role_strats))
     else:
-        return np.concatenate([x[0][None] for x in equilibria]), trail
+        return np.concatenate([x[0][None] for x in equilibria])
