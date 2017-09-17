@@ -3,6 +3,7 @@ import multiprocessing
 import numpy as np
 import scipy.special as sps
 from scipy import stats
+from scipy.stats import multivariate_normal
 from sklearn import gaussian_process
 from sklearn import model_selection
 
@@ -136,6 +137,51 @@ class PointGPGame(BaseGPGame):
         dev_profs = self.role_repeat(dev_players) * mix
         return self.get_mean_dev_payoffs(dev_profs[:, None])
 
+class IntegrateGPGame(BaseGPGame):
+    """Evaluates GPs around the 'profile' corresponding to mixture fractions
+    by performing an integration over those payoffs and their corresponding
+    probabilities"""
+
+    #XXX: This is an implementation specific to symmetric games
+
+    def __init__(self, game, **base_args):
+        super().__init__(game, **base_args)
+        self._dim = self.num_strategies[0] - 1
+        self._C, self._ls, _ = np.exp([gp.kernel_.theta for gp in self._gps]).T
+        sigma2_raw = np.linalg.inv(
+                np.ones((self._dim, self._dim)) + np.eye(self._dim))
+        self._sigma2 = ((self._ls[:, None]  ** 2) * sigma2_raw.ravel()). \
+                reshape(-1, self._dim, self._dim)
+        det2_raw = np.linalg.det(sigma2_raw)
+        self._det2 = (self._ls ** (2 * self._dim)) * det2_raw
+
+    def _k_star(self, prof, y, ls, n, sigma3_inv, det2, det3, i):
+        v = prof[:-1] - y[:-1]
+        e = np.exp(-.5 * np.dot(v, np.dot(sigma3_inv, v[:, None])))[0]
+        return (det2 / det3) ** .5 * e
+
+    def deviation_payoffs(self, mix, assume_complete=True, jacobian=False):
+        assert not jacobian, "PointGPGame doesn't support jacobian"
+        n = self.num_players[0] - 1
+        dev_prof = mix * n
+        sigma1 = np.eye(self._dim)
+        np.fill_diagonal(sigma1, mix[:-1])
+        sigma1 = (sigma1 - np.dot(mix[:-1, None], mix[None, :-1])) * n
+        ret = []
+        # for each strategy, find the deviation payoff
+        for i, gp in enumerate(self._gps):
+            sigma2 = self._sigma2[i]
+            det2 = self._det2[i]
+            sigma3 = sigma1 + sigma2
+            sigma3_inv = np.linalg.inv(sigma3)
+            det3 = np.linalg.det(sigma3)
+            y_s = gp.X_train_
+            k_star = [self._k_star(dev_prof, y, self._ls[i], n, sigma3_inv, det2, det3, i) \
+                      for y in y_s]
+            k_star = np.array(k_star) * self._C[i]
+            y_mean = k_star.dot(gp.alpha_) + gp.y_train_mean
+            ret.append(y_mean)
+        return np.array(ret)
 
 class SampleGPGame(BaseGPGame):
     """Averages GP payoff estimates over profiles sampled from mix.

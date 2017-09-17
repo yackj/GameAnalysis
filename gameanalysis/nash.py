@@ -200,7 +200,8 @@ class ReplicatorDynamics(object):
         if route: trail = []
 
         for _ in range(self.max_iters):
-            trail.append(mix)
+            if route:
+                trail.append(mix)
             old_mix = mix
             dev_pays = self.game.deviation_payoffs(mix, assume_complete=True)
             minp = np.minimum(minp, self.game.role_reduce(dev_pays,
@@ -326,7 +327,7 @@ def mixed_nash(game, regret_thresh=1e-3, dist_thresh=1e-3, grid_points=2,
     chunksize = len(initial_points) if processes == 1 else 4
 
     with multiprocessing.Pool(processes) as pool:
-        for i, et in enumerate(itertools.chain.from_iterable(
+        for i, eqm in enumerate(itertools.chain.from_iterable(
                 pool.imap_unordered(m, initial_points, chunksize=chunksize)
                 for m in methods)):
             reg = regret.mixture_regret(game, eqm)
